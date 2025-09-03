@@ -2,9 +2,8 @@
 
 ### Project Overview  
 This project explores Formula One data with a focus on data extraction, evaluation, prediction, and explainable models. Currently divided into three main components:
-1. Weather analysis
-2. Telemetry analysis
-3. Tyre life and fuel analysis
+1. Telemetry analysis
+2. Tyre life and fuel analysis
 
 ## Data Model
 
