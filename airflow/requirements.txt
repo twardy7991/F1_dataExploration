@@ -1,0 +1,5 @@
+pandas
+pyarrow
+fastf1
+dtaidistance
+#pache-airflow[google]
