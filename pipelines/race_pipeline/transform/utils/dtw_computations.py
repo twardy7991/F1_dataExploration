@@ -2,14 +2,14 @@ from .telemetry_processing import TelemetryProcessing
 import pandas as pd
 import numpy as np
 from dtaidistance import dtw
-from fastf1.core import Session, Lap, Telemetry, Laps
+from fastf1.core import Session, Lap, Laps
 
 class DTWComputations:
     
     def __init__(self):
         pass
     
-    def calculate_dtw(self, quali_session : Session, telemetry_df : pd.DataFrame, race_session : Session):
+    def calculate_dtw(self, quali_session : Session, telemetry_df : pd.DataFrame, race_session : Session) -> pd.DataFrame:
         
         ref_singnal_df = self._calculate_reference_df(telemetry_df=telemetry_df, quali_session=quali_session, race_session=race_session)
 
@@ -46,7 +46,7 @@ class DTWComputations:
         
         return dist_df
         
-    def _calculate_reference_df(self, telemetry_df : pd.DataFrame, quali_session : Session, race_session : Session):
+    def _calculate_reference_df(self, telemetry_df : pd.DataFrame, quali_session : Session, race_session : Session) -> pd.DataFrame:
         ref_singnal_df = pd.DataFrame()
 
         for driver in telemetry_df['DriverNumber'].unique():
