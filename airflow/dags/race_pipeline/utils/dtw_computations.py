@@ -1,4 +1,5 @@
 from .telemetry_processing import TelemetryProcessing
+from .acceleration_computations import AccelerationComputations
 import pandas as pd
 import numpy as np
 from dtaidistance import dtw
@@ -40,7 +41,7 @@ class DTWComputations:
                         'LatDistanceDTW': distances_lat
                     })
 
-        distance_records = []
+        #distance_records = [] # ?
     
         dist_df = pd.DataFrame(distance_records)
         
@@ -62,10 +63,10 @@ class DTWComputations:
                 q_lap['DriverNumber'] = driver
                 q_lap['LapNumber'] = 1.0
                 
-                telemetry_processing = TelemetryProcessing(q_lap)
+                telemetry_processing = TelemetryProcessing(q_lap, acceleration_computations=AccelerationComputations())
                 telemetry_processing.calculate_accelerations()
                 
-                q_lap = telemetry_processing.data.drop(columns='LapNumber', inplace=True)
+                telemetry_processing.data.drop(columns='LapNumber', inplace=True)
                 
                 ref_singnal_df = pd.concat([ref_singnal_df, q_lap], axis=0)
         

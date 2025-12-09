@@ -1,4 +1,4 @@
-from airflow.decorators import task
+from airflow.sdk import task
 from fastf1.core import Session, Lap, Telemetry
 import fastf1
 from typing import List
@@ -12,13 +12,13 @@ gp_file_names = {
         'Abu Dhabi': 'Abu Dhabi'
     }
 
-@task 
+
 def get_session(year : int = 2023,
                     gp_name : str = "Saudi Arabia", 
-                    session_type : str | int = "q", 
+                    session_type : str | int = None, # we want both Race and Quali, workaround for now 
                     ) -> Session:
     
-    session : Session    
+    #session : Session    
         
     #left constant for now, could be made flexible with future development
     telemetry : bool = True
@@ -28,13 +28,18 @@ def get_session(year : int = 2023,
     gp_name = gp_file_names.get(gp_name, gp_name)
     
     if gp_name.isdigit():
-        session = fastf1.get_session(year=year, gp=int(gp_name), identifier=session_type)
+        quali = fastf1.get_session(year=year, gp=int(gp_name), identifier='Q')
+        race = fastf1.get_session(year=year, gp=int(gp_name), identifier='R')
+
     else:
-        session = fastf1.get_session(year=year, gp=gp_name, identifier=session_type)
+        quali = fastf1.get_session(year=year, gp=gp_name, identifier="Q")
+        race = fastf1.get_session(year=year, gp=gp_name, identifier="R")
     
-    session.load(telemetry=telemetry, messages=messages, weather=weather)
-    
-    return session
+    quali.load(telemetry=telemetry, messages=messages, weather=weather)
+    race.load(telemetry=telemetry, messages=messages, weather=weather)
+
+
+    return race, quali
 
 ## is type return proper?
 @task

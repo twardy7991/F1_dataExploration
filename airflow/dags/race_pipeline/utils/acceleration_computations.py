@@ -204,7 +204,7 @@ class AccelerationComputations:
                  current_segment_angle = math.atan2(dy_ds[i], dx_ds[i])
                  delta_theta_raw = current_segment_angle - theta[i - 1]
                  # Wrap the change to [-pi, pi] to avoid large jumps
-                 delta_theta_wrapped, _ = self.transform_to_pipi(delta_theta_raw)
+                 delta_theta_wrapped, _ = self._transform_to_pipi(delta_theta_raw) # :c
                  # Add the wrapped change to the previous angle
                  theta[i] = theta[i - 1] + delta_theta_wrapped
 
