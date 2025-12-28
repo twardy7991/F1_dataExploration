@@ -47,12 +47,13 @@ class DTWComputations:
         
         return dist_df
         
-    def _calculate_reference_df(self, telemetry_df : pd.DataFrame, quali_session : Session, race_session : Session) -> pd.DataFrame:
+    def _calculate_reference_df(self, telemetry_df : pd.DataFrame, quali_session : Session, race_session : Session, quali_data) -> pd.DataFrame:
         ref_singnal_df = pd.DataFrame()
 
         for driver in telemetry_df['DriverNumber'].unique():
             
-            driver_laps : Laps = quali_session.laps.pick_drivers(driver)
+            driver_laps = quali_data[quali_data["Driver"] == "VER"]
+            #driver_laps : Laps = quali_session.laps.pick_drivers(driver)
             fastest_lap : Lap | None = driver_laps.pick_fastest()
             
             if fastest_lap is None and not driver_laps.empty:

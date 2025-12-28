@@ -30,13 +30,31 @@ TRACK_INFO = {
     'Abu Dhabi': (5.281, 305.355),
 }
 
+def get_data(context):
+
+    race_telemetry = context["ti"].xcom_pull(task_id="extract", key = "race_telemetry")
+    quali_telemetry = context["ti"].xcom_pull(task_id="extract", key = "quali_telemetry")
+    race_data = context["ti"].xcom_pull(task_id="extract", key = "race_data")
+    quali_data = context["ti"].xcom_pull(task_id = "extract", key="quali_data")
+
+    return (pd.read_parquet(race_telemetry),
+            pd.read_parquet(quali_telemetry),
+            pd.read_parquet(race_data),
+            pd.read_parquet(quali_data))
 
 @task   
 ## feels too monolith, probably needs decoupling
-def build_session_dataset(gp_name : str, year : int, fuel_start : int = 100) -> pd.DataFrame:
+def build_session_dataset(**context) -> pd.DataFrame:
     
-    start = time.time()
-    race_session, quali_session = get_session(year=year, gp_name=gp_name) # Reverse order so it matches usage prevoiusly
+    race_telemetry = get_data()
+
+    params = context["params"]
+    gp_name : str = params["gp_name"]
+    year : int = params["year"] 
+    fuel_start : int = 100 
+
+    #start = time.time()
+    #race_session, quali_session = get_session(year=year, gp_name=gp_name) # Reverse order so it matches usage prevoiusly
     print(f"Session loaded in {time.time() - start:.2f} seconds.")
     
     # Extract telemetry from the loaded session
@@ -44,26 +62,8 @@ def build_session_dataset(gp_name : str, year : int, fuel_start : int = 100) -> 
     # race_telemetry = race_session.car_data
 
     ### creating telemetry dataframe  #########
-    start = time.time()
-    
-    telemetry_data = []
-    
-    for _, lap in race_session.laps.iterrows():
-        try:
-            lap_tel = lap.get_telemetry()
-            
-            if lap_tel is not None and not lap_tel.empty:
-                lap_tel = lap_tel.assign(
-                    LapNumber=lap['LapNumber'],
-                    DriverNumber=lap['DriverNumber']
-                )
-                telemetry_data.append(lap_tel)
-                
-        except Exception as e:
-            print(f"Skipping lap {lap.get('LapNumber', '?')} due to error: {e}")
-            continue
 
-    race_telemetry = pd.concat(telemetry_data, ignore_index=True)
+    race_telemetry, quali_telemetry, race_laps_df. quali_data = get_data(context) 
     
     if 'Time' in race_telemetry.columns:
         race_telemetry['Time'] = pd.to_timedelta(race_telemetry['Time'])
@@ -72,7 +72,7 @@ def build_session_dataset(gp_name : str, year : int, fuel_start : int = 100) -> 
     print(f"Telemetry extracted in {time.time() - start:.2f} seconds.")
 
     lap_length, track_length = TRACK_INFO[gp_name]
-    race_laps_df : Laps = race_session.laps
+    #race_laps_df : Laps = race_session.laps
     main_cols = ['Driver', 'Team', 'Compound', 'TyreLife', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'LapNumber', 'DriverNumber']
     
     # drop NA # causing bugs rn
@@ -89,10 +89,6 @@ def build_session_dataset(gp_name : str, year : int, fuel_start : int = 100) -> 
     start = time.time()
     # -----------TELEMETRY------------ #
     telemetry_df = pd.DataFrame(race_telemetry)
-
-    
-
-    
 
     tel_processing = TelemetryProcessing(telemetry_df, acceleration_computations=AccelerationComputations())
     tel_processing.calculate_mean_lap_speed()

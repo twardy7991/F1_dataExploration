@@ -1,8 +1,10 @@
 from airflow.sdk import task
 from fastf1.core import Session, Lap, Telemetry
 import fastf1
-from typing import List
+from typing import List, Tuple
 import pandas as pd
+import os
+
 
 #ugly workaround
 gp_file_names = {
@@ -12,11 +14,60 @@ gp_file_names = {
         'Abu Dhabi': 'Abu Dhabi'
     }
 
+@task(do_xcom_push=True, multiple_outputs=True)
+def extract(**context):
+
+    params = context["params"]
+    gp_name = params["race_name"]
+    year = params["year"]
+
+    if not os.path.exists(f'../../cache/{year}'):
+        os.makedirs(f'../../cache/{year}')
+    # fastf1.Cache.enable_cache('cache')
+
+    race : Session
+    quali : Session
+
+    race, quali = get_session(year=year, gp_name=gp_name)
+
+    race_data = race.laps
+    quali_data = quali.laps
+    race_telemetry = get_session_telemetry(race)
+    quali_telemetry = get_session_telemetry(quali)
+
+    cache_dir_path = f"../../cache/{year}"
+    dir_files = os.listdir(cache_dir_path)
+
+    race_data_file = f"../../cache/{year}/{year}_{gp_name}_race_data.parquet"
+    if race_data_file not in dir_files:
+        race_data.to_parquet(race_data_file) 
+    
+    quali_data_file = f"../../cache/{year}/{year}_{gp_name}_quali_data.parquet"
+    if quali_data_file not in dir_files:
+        quali_data.to_parquet(quali_data_file)
+
+    race_telemetry_file = f"../../cache/{year}/{year}_{gp_name}_race_data.parquet"
+    if race_telemetry_file not in dir_files:
+        race_telemetry.to_parquet(race_telemetry_file)
+
+    quali_telemetry_file = f"../../cache/{year}/{year}_{gp_name}_race_data.parquet"
+    if quali_telemetry_file not in dir_files:
+        quali_telemetry.to_parquet(quali_telemetry_file)
+
+    r = open("_READY")
+    r.close()
+
+    return {
+            "quali_data_file" : quali_data_file,
+            "race_data_file" : race_data_file,
+            "race_telemetry_file" : race_telemetry_file,
+            "quali_telemetry_file" : quali_telemetry_file
+            }
 
 def get_session(year : int = 2023,
                     gp_name : str = "Saudi Arabia", 
                     session_type : str | int = None, # we want both Race and Quali, workaround for now 
-                    ) -> Session:
+                    ) -> Tuple[Session, Session]:
     
     #session : Session    
         
@@ -38,11 +89,9 @@ def get_session(year : int = 2023,
     quali.load(telemetry=telemetry, messages=messages, weather=weather)
     race.load(telemetry=telemetry, messages=messages, weather=weather)
 
-
     return race, quali
 
 ## is type return proper?
-@task
 def get_session_telemetry(session : Session) -> pd.DataFrame:
         
         telemetry_data : List = []
