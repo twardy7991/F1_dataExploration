@@ -1,21 +1,18 @@
-import pandas as pd
+from airflow.sdk import task
 from pathlib import Path
-from airflow.decorators import task
-from sqlalchemy.dialects import 
+#from sqlalchemy import 
 
-DIRECTORY_PATH = "./data"
+@task
+def save_processed_session(**context) -> None:
+    ti = context["ti"]
 
-def save_session_df_to_pickle(**context) -> None:
+    processed_file = ti.xcom_pull(
+        task_ids="build_session_dataset",
+        key="processed_file",
+    )
+    print(f"Retrieved processed file path from XCom: {processed_file}")
+    path = Path(processed_file)
+    if not path.exists():
+        raise FileNotFoundError(path)
 
-    params = context["params"]
-    gp_name = params["gp_name"]
-    year = params["year"]
-    session_type = session_type["session_type"]
-
-    dir_path = Path(DIRECTORY_PATH)
-    dir_path.mkdir(parents=True, exist_ok=True)
-
-    output_file = dir_path / f"seasons/{year}/telemetry_{gp_name}_{session_type}.pkl"
-    df.to_parquet(output_file)
-
-    print(f"Telemetry saved to {output_file}")
+    print(f"Telemetry saved to {path}")
