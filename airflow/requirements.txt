@@ -2,4 +2,5 @@ pandas
 pyarrow
 fastf1
 dtaidistance
+sqlalchemy
 #pache-airflow[google]

@@ -76,6 +76,7 @@ x-airflow-common: &airflow-common
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     ## added folder for data
     - ${AIRFLOW_PROJ_DIR:-.}/../data:/opt/airflow/data
+    - ${AIRFLOW_PROJ_DIR:-.}/../cache:/opt/airflow/cache
 
   user: "${AIRFLOW_UID:-50000}:0"
 

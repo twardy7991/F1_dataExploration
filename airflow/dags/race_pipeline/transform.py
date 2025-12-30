@@ -1,7 +1,9 @@
+import time
+from pathlib import Path
 from race_pipeline.utils import TelemetryProcessing, FuelProcessing, DTWComputations, AccelerationComputations
 import pandas as pd
 from fastf1.core import Session, Telemetry, Laps
-from airflow.decorators import task
+from airflow.sdk import task
 
 TRACK_INFO = {
     'Bahrain': (5.412, 308.238),
@@ -29,24 +31,63 @@ TRACK_INFO = {
 }
 
 
-@task   
+
+@task(do_xcom_push=True, multiple_outputs=True)   
 ## feels too monolith, probably needs decoupling
-def build_session_dataset(gp_name : str, race_session : Session, quali_session : Session, race_telemetry : Telemetry, fuel_start : int = 100) -> pd.DataFrame:
+def build_session_dataset(year : int, gp_name : str, save_path : str, **context) -> pd.DataFrame:
     
+    save_path : Path = Path(save_path)
+    fuel_start : int = 100 
+
+    def get_data(context):
+
+        race_telemetry = context["ti"].xcom_pull(task_ids="extract", key = "race_telemetry_file")
+        quali_telemetry = context["ti"].xcom_pull(task_ids="extract", key = "quali_telemetry_file")
+        race_data = context["ti"].xcom_pull(task_ids="extract", key = "race_data_file")
+        quali_data = context["ti"].xcom_pull(task_ids="extract", key="quali_data_file")
+
+        return (pd.read_parquet(race_telemetry),
+                pd.read_parquet(quali_telemetry),
+                pd.read_parquet(race_data),
+                pd.read_parquet(quali_data))
+
+
+    # start = time.time()
+    # race_session, quali_session = get_session(year=year, gp_name=gp_name) # Reverse order so it matches usage prevoiusly
+    # print(f"Session loaded in {time.time() - start:.2f} seconds.")
+    
+    # Extract telemetry from the loaded session
+    # Doesnt work
+    # race_telemetry = race_session.car_data
+
+    ### creating telemetry dataframe  #########
+
+    race_telemetry, quali_telemetry, race_laps_df, quali_data = get_data(context) 
+    
+    if 'Time' in race_telemetry.columns:
+        race_telemetry['Time'] = pd.to_timedelta(race_telemetry['Time'])
+
+    ######## ------------------------------------------- ########
+    # print(f"Telemetry extracted in {time.time() - start:.2f} seconds.")
+
     lap_length, track_length = TRACK_INFO[gp_name]
-    race_laps_df : Laps = race_session.laps
-    main_cols = ['Driver', 'Team', 'Compound', 'TyreLife', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'LapNumber', 'DriverNumber', 'LapNumber']
+    #race_laps_df : Laps = race_session.laps
+    main_cols = ['Driver', 'Team', 'Compound', 'TyreLife', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'LapNumber', 'DriverNumber']
     
     # drop NA # causing bugs rn
     race_laps_df : pd.DataFrame = race_laps_df[main_cols]
     #lap_df = lap_df[main_cols].dropna()
     
+    # start = time.time()
     # -----------FUEL------------ #
     fuel_processing : FuelProcessing = FuelProcessing(race_laps_df)
-    fuel_processing.calculateFCL(lap_length=lap_length, track_length=track_length, fuel_start=fuel_start)
-
+    race_laps_with_fuel = fuel_processing.calculateFCL(lap_length=lap_length, track_length=track_length, fuel_start=fuel_start)
+    
+    # print(f"Fuel calculations done in {time.time() - start:.2f} seconds.")
+    
+    # start = time.time()
     # -----------TELEMETRY------------ #
-    telemetry_df : Telemetry = race_telemetry
+    telemetry_df = pd.DataFrame(race_telemetry)
 
     tel_processing = TelemetryProcessing(telemetry_df, acceleration_computations=AccelerationComputations())
     tel_processing.calculate_mean_lap_speed()
@@ -56,23 +97,44 @@ def build_session_dataset(gp_name : str, race_session : Session, quali_session :
     lap_telemetry = tel_processing.get_single_lap_data()
     
     lap_df = pd.merge(
-        race_laps_df,
+        race_laps_with_fuel,
         lap_telemetry,
         on=['DriverNumber', 'LapNumber'],
         how='left'
     )
 
-    # -----------DTW------------ #
-    dtw_computations = DTWComputations()
-    dist_df = dtw_computations.calculate_dtw(quali_session=quali_session, telemetry_df=telemetry_df)
-    
-    lap_df = pd.merge(lap_df,dist_df, on=['DriverNumber', 'LapNumber'], how='left')
+     #print(f"Telemetry calculations done in {time.time() - start:.2f} seconds.")
 
-    final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed', 'LonDistanceDTW', 'LatDistanceDTW']
+
+    # start = time.time()
+    # -----------DTW------------ #
+    # dtw_computations = DTWComputations()
+    # dist_df = dtw_computations.calculate_dtw(quali_session=quali_session, telemetry_df=telemetry_df, race_session=race_session)
+    
+    # lap_df = pd.merge(lap_df,dist_df, on=['DriverNumber', 'LapNumber'], how='left')
+
+    #final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed', 'LonDistanceDTW', 'LatDistanceDTW']
+    
+    
+    
+    
+    # -----------FINAL------------ #
+    final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed']
     processed_df = lap_df[final_cols].reset_index(drop=True)
     
     print(processed_df.head())
     print('Shape:', processed_df.shape)
     
-    return processed_df
+    #print(f"DTW calculations done in {time.time() - start:.2f} seconds.")
+
+    out_dir = save_path / str(year) / gp_name
+    out_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Output directory: {out_dir}")
+    out_file = out_dir / "session_dataset.parquet"
+    print(f"Saving processed data to {out_file}")
+    lap_df.to_parquet(out_file)
+
+    return {
+        "processed_file" : str(out_file)
+    }
 

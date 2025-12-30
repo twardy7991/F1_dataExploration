@@ -3,8 +3,8 @@ import numpy as np
 
 class FuelProcessing:
     
-    def __init__(self):
-        pass
+    def __init__(self, lap_df : pd.DataFrame):
+        self.lap_df = lap_df.copy()
     # isnt race length better than track lenght? feels confusing
     def _calculate_needed_fuel(self, lap_length, track_length, fuel_start=100, fuel_end=1):
         laps_per_track = int(track_length / lap_length)

@@ -1,4 +1,5 @@
 from .telemetry_processing import TelemetryProcessing
+from .acceleration_computations import AccelerationComputations
 import pandas as pd
 import numpy as np
 from dtaidistance import dtw
@@ -40,18 +41,19 @@ class DTWComputations:
                         'LatDistanceDTW': distances_lat
                     })
 
-        distance_records = []
+        #distance_records = [] # ?
     
         dist_df = pd.DataFrame(distance_records)
         
         return dist_df
         
-    def _calculate_reference_df(self, telemetry_df : pd.DataFrame, quali_session : Session, race_session : Session) -> pd.DataFrame:
+    def _calculate_reference_df(self, telemetry_df : pd.DataFrame, quali_session : Session, race_session : Session, quali_data) -> pd.DataFrame:
         ref_singnal_df = pd.DataFrame()
 
         for driver in telemetry_df['DriverNumber'].unique():
             
-            driver_laps : Laps = quali_session.laps.pick_drivers(driver)
+            driver_laps = quali_data[quali_data["Driver"] == "VER"]
+            #driver_laps : Laps = quali_session.laps.pick_drivers(driver)
             fastest_lap : Lap | None = driver_laps.pick_fastest()
             
             if fastest_lap is None and not driver_laps.empty:
@@ -62,10 +64,10 @@ class DTWComputations:
                 q_lap['DriverNumber'] = driver
                 q_lap['LapNumber'] = 1.0
                 
-                telemetry_processing = TelemetryProcessing(q_lap)
+                telemetry_processing = TelemetryProcessing(q_lap, acceleration_computations=AccelerationComputations())
                 telemetry_processing.calculate_accelerations()
                 
-                q_lap = telemetry_processing.data.drop(columns='LapNumber', inplace=True)
+                telemetry_processing.data.drop(columns='LapNumber', inplace=True)
                 
                 ref_singnal_df = pd.concat([ref_singnal_df, q_lap], axis=0)
         
