@@ -4,37 +4,39 @@ from race_pipeline.utils import TelemetryProcessing, FuelProcessing, DTWComputat
 import pandas as pd
 from fastf1.core import Session, Telemetry, Laps
 from airflow.sdk import task
+import logging
 
 TRACK_INFO = {
-    'Bahrain': (5.412, 308.238),
-    'Saudi Arabia': (6.174, 308.450),
-    'Australia': (5.278, 306.124),
-    'Azerbaijan': (6.003, 306.049),
-    'Miami': (5.412, 308.326),
-    'Monaco': (3.337, 260.286),
-    'Spain': (4.675, 308.424),
-    'Canada': (4.361, 305.270),
-    'Austria': (4.318, 306.452),
-    'Great Britain': (5.891, 306.198),
-    'Hungary': (4.381, 306.670),
-    'Belgium': (7.004, 308.052),
-    'Netherlands': (4.259, 306.587),
-    'Italy': (5.793, 306.720),
-    'Singapore': (4.940, 308.706),
-    'Japan': (5.807, 307.471),
-    'Qatar': (5.419, 308.611),
-    'United States': (5.513, 308.405),
-    'Mexico': (4.304, 305.354),
-    'Brazil': (4.309, 305.879),
-    'Las Vegas': (6.201, 305.880),
-    'Abu Dhabi': (5.281, 305.355),
+    'Bahrain Grand Prix': (5.412, 308.238),
+    'Saudi Arabian Grand Prix': (6.174, 308.450),
+    'Australian Grand Prix': (5.278, 306.124),
+    'Azerbaijan Grand Prix': (6.003, 306.049),
+    'Miami Grand Prix': (5.412, 308.326),
+    'Monaco Grand Prix': (3.337, 260.286),
+    'Spanish Grand Prix': (4.675, 308.424),
+    'Canadian Grand Prix': (4.361, 305.270),
+    'Austrian Grand Prix': (4.318, 306.452),
+    'British Grand Prix': (5.891, 306.198),
+    'Hungarian Grand Prix': (4.381, 306.670),
+    'Belgian Grand Prix': (7.004, 308.052),
+    'Dutch Grand Prix': (4.259, 306.587),
+    'Italian Grand Prix': (5.793, 306.720),
+    'Singapore Grand Prix': (4.940, 308.706),
+    'Japanese Grand Prix': (5.807, 307.471),
+    'Qatar Grand Prix': (5.419, 308.611),
+    'United States Grand Prix': (5.513, 308.405),
+    'Mexico City Grand Prix': (4.304, 305.354),
+    'São Paulo Grand Prix': (4.309, 305.879),
+    'Las Vegas Grand Prix': (6.201, 305.880),
+    'Abu Dhabi Grand Prix': (5.281, 305.355),
 }
 
-
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 @task(do_xcom_push=True, multiple_outputs=True)   
 ## feels too monolith, probably needs decoupling
-def build_session_dataset(year : int, gp_name : str, save_path : str, **context) -> pd.DataFrame:
+def transform(year : int, gp_name : str, save_path : str, **context) -> pd.DataFrame:
     
     save_path : Path = Path(save_path)
     fuel_start : int = 100 
@@ -50,7 +52,6 @@ def build_session_dataset(year : int, gp_name : str, save_path : str, **context)
                 pd.read_parquet(quali_telemetry),
                 pd.read_parquet(race_data),
                 pd.read_parquet(quali_data))
-
 
     # start = time.time()
     # race_session, quali_session = get_session(year=year, gp_name=gp_name) # Reverse order so it matches usage prevoiusly
@@ -80,6 +81,8 @@ def build_session_dataset(year : int, gp_name : str, save_path : str, **context)
     
     # start = time.time()
     # -----------FUEL------------ #
+    logger.debug(f"race_laps_df driver list : \n{race_laps_df['DriverNumber'].unique()} \n")
+    
     fuel_processing : FuelProcessing = FuelProcessing(race_laps_df)
     race_laps_with_fuel = fuel_processing.calculateFCL(lap_length=lap_length, track_length=track_length, fuel_start=fuel_start)
     
@@ -88,6 +91,8 @@ def build_session_dataset(year : int, gp_name : str, save_path : str, **context)
     # start = time.time()
     # -----------TELEMETRY------------ #
     telemetry_df = pd.DataFrame(race_telemetry)
+    
+    logger.debug(f"telemetry_df driver list : \n{telemetry_df['DriverNumber'].unique()} \n")
 
     tel_processing = TelemetryProcessing(telemetry_df, acceleration_computations=AccelerationComputations())
     tel_processing.calculate_mean_lap_speed()
@@ -103,9 +108,6 @@ def build_session_dataset(year : int, gp_name : str, save_path : str, **context)
         how='left'
     )
 
-     #print(f"Telemetry calculations done in {time.time() - start:.2f} seconds.")
-
-
     # start = time.time()
     # -----------DTW------------ #
     # dtw_computations = DTWComputations()
@@ -115,24 +117,24 @@ def build_session_dataset(year : int, gp_name : str, save_path : str, **context)
 
     #final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed', 'LonDistanceDTW', 'LatDistanceDTW']
     
-    
-    
-    
     # -----------FINAL------------ #
     final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed']
     processed_df = lap_df[final_cols].reset_index(drop=True)
     
-    print(processed_df.head())
-    print('Shape:', processed_df.shape)
+    logger.debug(processed_df.head())
     
-    #print(f"DTW calculations done in {time.time() - start:.2f} seconds.")
+    #logging.info(f"DTW calculations done in {time.time() - start:.2f} seconds.")
 
     out_dir = save_path / str(year) / gp_name
     out_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Output directory: {out_dir}")
+    
+    logger.info(f"Output directory: {out_dir}")
+    
     out_file = out_dir / "session_dataset.parquet"
-    print(f"Saving processed data to {out_file}")
-    lap_df.to_parquet(out_file)
+    
+    logger.info(f"Saving processed data to {out_file}")
+    
+    processed_df.to_parquet(out_file)
 
     return {
         "processed_file" : str(out_file)

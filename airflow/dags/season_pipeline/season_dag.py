@@ -10,8 +10,9 @@ from datetime import datetime
 
 DIRECTORY_PATH = "./data"
 
-
-
+import logging 
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
 
 @dag(
     dag_id = "season_dag",
@@ -22,38 +23,14 @@ DIRECTORY_PATH = "./data"
 )
 def race_dag():
 
-    # @task
-    # def extract_transform(**context):
-    #     year = context["params"]["year"]
-
-    #     for race_name in fastf1.get_event_schedule(year).Country.unique[:3]:
-    #         TriggerDagRunOperator(
-    #                             trigger_run_id = f"season_{race_name}",
-    #                             trigger_dag_id="single_race_dag", 
-    #                             start_date = datetime(2021, 1, 1),
-    #                             conf = {"race_name" : race_name, "year" : year},
-    #                             reset_dag_run=True,
-    #                             wait_for_completion=True #disables parallel processing (idk if possible, but my laptop would go bum anyway)
-    #                             )
-    # @task    
-    # def load(**context):
-        # year = context["params"]["year"]
-        # dir = Path(f"{DIRECTORY_PATH}/races/{year}")
-
-        # season_df = pd.DataFrame()
-        # for parquet in dir:
-        #     race_df = pd.read_parquet(parquet)
-        #     pd.concat(season_df, race_df)
-
-        # season_df.to_parquet(
-        #     path=f"{DIRECTORY_PATH}/seasons"
-        # )
-    
     @task
     def get_season_races(**context) -> List[dict]:
         year = context["params"]["year"]
 
-        schedule = fastf1.get_event_schedule(year).Country.unique().tolist()
+        schedule = fastf1.get_event_schedule(2023)
+        
+        ### RN FOR 3 RACES ONLY ###
+        schedule = schedule[schedule['EventName'].str.contains('Grand Prix')]['EventName'].to_list()[:3]
         races = []
 
         for race_name in schedule:
@@ -78,7 +55,7 @@ def race_dag():
         
         # Ensure directory exists
         if not source_dir.exists():
-            print(f"Directory {source_dir} does not exist. No data to load.")
+            logger.error(f"Directory {source_dir} does not exist. No data to load.")
             return
 
         # Iterate through each GP directory
@@ -90,32 +67,32 @@ def race_dag():
                 
                 if parquet_files:
                     for parquet_file in parquet_files:
-                        print(f"Loading {parquet_file}")
-                        df = pd.read_parquet(parquet_file)
+                        logger.info(f"Loading {parquet_file}")
+                        df = pd.read_parquet(parquet_file, 
+                                             engine="pyarrow",
+                                             dtype_backend="pyarrow")
                         dfs.append(df)
                     processed_races.append(gp_name)
                 else:
-                    print(f"No parquet files found for {gp_name}")
+                    logger.error(f"No parquet files found for {gp_name}")
         
-        # Log summary
-        print(f"\n{'='*60}")
-        print(f"Season {year} consolidation summary:")
-        print(f"Total races processed: {len(processed_races)}")
-        print(f"Processed races: {', '.join(sorted(processed_races))}")
-        print(f"{'='*60}\n")
+        logger.info(f"""\n{'='*60} \n
+                Season {year} consolidation summary:\n
+                Total races processed: {len(processed_races)}\n
+                Processed races: {', '.join(sorted(processed_races))}\n
+                {'='*60}\n""")
         
         if dfs:
-            # Efficient concat
             season_df = pd.concat(dfs, ignore_index=True)
             
             output_path = Path(f"{DIRECTORY_PATH}/seasons")
             output_path.mkdir(parents=True, exist_ok=True)
             
             season_df.to_parquet(output_path / f"season_{year}.parquet")
-            print(f"Season data saved to {output_path / f'season_{year}.parquet'}")
-            print(f"Total rows in season dataset: {len(season_df)}")
+            logger.info(f"""Season data saved to {output_path / f'season_{year}.parquet'}\n
+                        Total rows in season dataset: {len(season_df)}""")
         else:
-            print("No race data found to concatenate.")
+            logger.error("No race data found to concatenate.")
 
     race_list = get_season_races()
 
@@ -132,39 +109,4 @@ def race_dag():
     
     trigger_races >> consolidate_season()
 
-
 example_dag = race_dag()
-
-
-
-
-
-
-
-
-
-
-
-
-# def load_season_races_from_pickle(season_year): 
-
-#     directory = Path(f"{DIRECTORY_PATH}/{season_year}")
-    
-#     if directory.is_dir():
-#         for pickle in directory.rglob("*.pkl"):
-#             yield load_race_from_pickle(pickle)
-#     else:
-#         raise FileNotFoundError("Season directory is not existing, please create directory and download races with race pipeline")
-    
-# def load_race_from_pickle(pickle_path, gp_name):
-    
-#     try: 
-#         tel : pd.DataFrame = pd.read_pickle(pickle_path)
-#     except FileNotFoundError:
-#         raise FileNotFoundError(f"Telemetry data not found for {gp_name}. Expected file: {pickle_path}")
-
-#     telemetry : Telemetry = Telemetry(tel)
-#     telemetry.has_channel = lambda c: c in telemetry.columns  
-#     telemetry['Time'] = pd.to_timedelta(telemetry['Time'])
-#     return telemetry
-
