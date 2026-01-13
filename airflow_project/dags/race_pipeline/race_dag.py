@@ -1,12 +1,13 @@
 from pathlib import Path
-from race_pipeline.extract import extract
-from race_pipeline.transform import transform
-from race_pipeline.load import load
-from airflow.sdk import dag, Param, task
 from datetime import datetime
-from airflow.utils import timezone
-
 import logging
+
+from airflow.sdk import dag, Param, task
+
+from race_pipeline.tasks.extract import extract
+from race_pipeline.tasks.transform import transform
+from race_pipeline.tasks.load import load
+
 logging.basicConfig(level=logging.INFO)
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,8 @@ def etl_pipeline():
 
     params = get_params()
     
-    logger.info(f"STARTING RACE_DAG FOR {params["gp_name"]}")
+    gp_name = params["gp_name"]
+    logger.info(f"STARTING RACE_DAG FOR {gp_name}")
 
     extract_session = extract(year = params["year"], gp_name = params["gp_name"], save_path = params["raw_base"])
 

@@ -1,9 +1,10 @@
-from .telemetry_processing import TelemetryProcessing
-from .acceleration_computations import AccelerationComputations
 import pandas as pd
 import numpy as np
 from dtaidistance import dtw
 from fastf1.core import Session, Lap, Laps
+
+from .telemetry_processing import TelemetryProcessing
+from .acceleration_computations import AccelerationComputations
 
 class DTWComputations:
     
