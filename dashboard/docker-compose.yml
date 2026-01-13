@@ -1,0 +1,19 @@
+
+services:
+  dashboard:
+    build: .
+    container_name: dashboard
+
+    ports:
+     - 8501:8501
+
+    volumes:
+      - .:/app
+      - ./../data:/data
+    environment:
+      - STREAMLIT_SERVER_RUN_ON_SAVE=true
+      - STREAMLIT_SERVER_FILE_WATCHER_TYPE=auto
+
+    
+    
+
