@@ -1,13 +1,17 @@
-from fastf1.core import Session, Lap, Telemetry
-from airflow.sdk import task
 from pathlib import Path
+import logging
+from typing import Tuple, List
+from typing import Tuple, List
+import queue
+
+import threading
+import pandas as pd
+import numpy as np
+
 import pandas as pd
 import fastf1
-from typing import Dict, Tuple, List
-import os
-import logging
-import pyarrow as pa
-import pyarrow.parquet as pq
+from fastf1.core import Session, Lap, Telemetry
+from airflow.sdk import task
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
@@ -57,7 +61,11 @@ def extract(year : int, gp_name : str, save_path : str, **context):
     
     race_data : pd.DataFrame = race.laps 
     quali_data : pd.DataFrame = quali.laps
+    
+    logger.info("getting race telemetry data")
     race_telemetry = get_session_telemetry(race)
+    
+    logger.info("getting quali telemetry data")
     quali_telemetry = get_session_telemetry(quali)
     
     race_data = race_data.astype({
@@ -190,17 +198,72 @@ def get_session_telemetry(session : Session) -> pd.DataFrame:
         
         telemetry_data : List = []
         
+        rows = session.laps.shape[0]
+        
         lap : Lap
         
-        for _, lap in session.laps.iterrows():
+        for _, lap in session.laps.iterrows(): 
             try:
                 tel: Telemetry = lap.get_telemetry()
                 tel['DriverNumber'] = lap['DriverNumber']
                 tel['LapNumber'] = lap['LapNumber']
                 telemetry_data.append(tel)
                 
+                if _ % 100 == 0:
+                    logger.info(f"{round(_ / rows * 100, 2) } % completed")
+                
             except fastf1.core.DataNotLoadedError:
                 logger.error(f"WARNING: Telemetry not loaded for driver {lap['DriverNumber']}, lap {lap['LapNumber']}")
                 continue
-            
+        
+        logger.info(f"{100} % completed")
         return pd.concat(telemetry_data, ignore_index=True)
+
+# def get_session_telemetry(session : Session) -> pd.DataFrame:
+        
+#         def load_data(laps, res_q : queue.Queue):
+#             telemetry_data = []
+            
+#             rows = session.laps.shape[0]
+            
+#             lap : Lap
+                    
+#             for _, lap in laps.iterrows():
+#                     try:
+#                         tel: Telemetry = lap.get_telemetry()
+#                         tel['DriverNumber'] = lap['DriverNumber']
+#                         tel['LapNumber'] = lap['LapNumber']
+#                         telemetry_data.append(tel)
+                                
+#                         # if _ % 100 == 0:
+#                         #     logger.info(f"{round(_ / rows * 100, 2) } % completed")
+                                
+#                     except fastf1.core.DataNotLoadedError:
+#                         logger.error(f"WARNING: Telemetry not loaded for driver {lap['DriverNumber']}, lap {lap['LapNumber']}")
+#                         continue
+                    
+#             res_q.put(pd.concat(telemetry_data, ignore_index=True))
+        
+#         complete_telemetry_data : List = []
+        
+#         rows = session.laps.shape[0]
+        
+#         splitted = np.array_split(session.laps, 4)
+#         threads : List[threading.Thread] = []
+#         results_q = queue.Queue()
+        
+#         for _, chunk in enumerate(splitted):
+#             t = threading.Thread(name=f"_", target=load_data ,args=(chunk, results_q))
+#             threads.append(t)
+        
+#         for t in threads:
+#             t.start()
+            
+#         for t in threads:
+#             t.join()    
+            
+#         while not results_q.empty():
+#             complete_telemetry_data.append(results_q.get())
+        
+#         # logger.info(f"{100} % completed")
+#         return pd.concat(complete_telemetry_data, ignore_index=True)

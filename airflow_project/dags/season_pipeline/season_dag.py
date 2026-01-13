@@ -1,12 +1,11 @@
-import pandas as pd
-from fastf1.core import Telemetry
-from typing import List
 from pathlib import Path
+from typing import List
+from datetime import datetime
+
+import pandas as pd
 import fastf1
-from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-from datetime import datetime
 from airflow.sdk import dag, task, Param
-from datetime import datetime
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
 DIRECTORY_PATH = "./data"
 

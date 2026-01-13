@@ -1,10 +1,13 @@
-import time
 from pathlib import Path
-from race_pipeline.utils import TelemetryProcessing, FuelProcessing, DTWComputations, AccelerationComputations
+import logging
+
 import pandas as pd
 from fastf1.core import Session, Telemetry, Laps
 from airflow.sdk import task
-import logging
+
+from utils.telemetry_processing import TelemetryProcessing
+from utils.acceleration_computations import AccelerationComputations
+from utils.fuel_processing import FuelProcessing
 
 TRACK_INFO = {
     'Bahrain Grand Prix': (5.412, 308.238),
@@ -32,7 +35,7 @@ TRACK_INFO = {
 }
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 @task(do_xcom_push=True, multiple_outputs=True)   
 ## feels too monolith, probably needs decoupling
@@ -43,23 +46,16 @@ def transform(year : int, gp_name : str, save_path : str, **context) -> pd.DataF
 
     def get_data(context):
 
-        race_telemetry = context["ti"].xcom_pull(task_ids="extract", key = "race_telemetry_file")
-        quali_telemetry = context["ti"].xcom_pull(task_ids="extract", key = "quali_telemetry_file")
-        race_data = context["ti"].xcom_pull(task_ids="extract", key = "race_data_file")
-        quali_data = context["ti"].xcom_pull(task_ids="extract", key="quali_data_file")
+        ti = context["ti"]
+        race_telemetry = ti.xcom_pull(task_ids="extract", key = "race_telemetry_file")
+        quali_telemetry = ti.xcom_pull(task_ids="extract", key = "quali_telemetry_file")
+        race_data = ti.xcom_pull(task_ids="extract", key = "race_data_file")
+        quali_data = ti.xcom_pull(task_ids="extract", key="quali_data_file")
 
         return (pd.read_parquet(race_telemetry),
                 pd.read_parquet(quali_telemetry),
                 pd.read_parquet(race_data),
                 pd.read_parquet(quali_data))
-
-    # start = time.time()
-    # race_session, quali_session = get_session(year=year, gp_name=gp_name) # Reverse order so it matches usage prevoiusly
-    # print(f"Session loaded in {time.time() - start:.2f} seconds.")
-    
-    # Extract telemetry from the loaded session
-    # Doesnt work
-    # race_telemetry = race_session.car_data
 
     ### creating telemetry dataframe  #########
 
@@ -68,15 +64,12 @@ def transform(year : int, gp_name : str, save_path : str, **context) -> pd.DataF
     if 'Time' in race_telemetry.columns:
         race_telemetry['Time'] = pd.to_timedelta(race_telemetry['Time'])
 
-    ######## ------------------------------------------- ########
-    # print(f"Telemetry extracted in {time.time() - start:.2f} seconds.")
-
     lap_length, track_length = TRACK_INFO[gp_name]
     #race_laps_df : Laps = race_session.laps
     main_cols = ['Driver', 'Team', 'Compound', 'TyreLife', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'LapNumber', 'DriverNumber']
     
     # drop NA # causing bugs rn
-    race_laps_df : pd.DataFrame = race_laps_df[main_cols]
+    # race_laps_df : pd.DataFrame = race_laps_df[main_cols]
     #lap_df = lap_df[main_cols].dropna()
     
     # start = time.time()
