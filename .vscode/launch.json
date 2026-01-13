@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Pytest debug",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["airflow_/test/test_dags/test_race_pipeline/test_tasks/test_transform.py"],
+            "console": "integratedTerminal"
+        }
+    ]
+}

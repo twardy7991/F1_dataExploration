@@ -1,0 +1,10 @@
+{
+    /* otherwise we get import errors on base hook in local IDE, 
+    works in arflow tho but its cleaner */
+    "python.analysis.extraPaths": [
+    "${workspaceFolder}/airflow_project/plugins",
+    "${workspaceFolder}/airflow_project/dags"
+    ]
+    ,
+    "python.envFile": "${workspaceFolder}/.env"
+}
