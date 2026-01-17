@@ -1,4 +1,4 @@
 config/*
 logs/*
-plugins/*
+#plugins/*
 .env
