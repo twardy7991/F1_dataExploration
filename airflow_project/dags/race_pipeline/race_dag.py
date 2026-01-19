@@ -4,9 +4,9 @@ import logging
 
 from airflow.sdk import dag, Param, task
 
-from race_pipeline.tasks.extract import extract
-from race_pipeline.tasks.transform import transform
-from race_pipeline.tasks.load import load
+from airflow_project.dags.race_pipeline.tasks.extract import extract
+from airflow_project.dags.race_pipeline.tasks.transform import transform
+from airflow_project.dags.race_pipeline.tasks.load import load
 
 logging.basicConfig(level=logging.INFO)
 

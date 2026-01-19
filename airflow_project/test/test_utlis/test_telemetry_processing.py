@@ -1,7 +1,5 @@
 import pandas as pd
-from pipelines.race_pipeline.transform.utils.telemetry_processing import TelemetryProcessing
-from pipelines.race_pipeline.transform.utils.acceleration_computations import AccelerationComputations
-from pytest_mock import mocker
+from airflow_project.dags.utils import TelemetryProcessing
 from pytest_mock import MockerFixture
 from pandas.testing import assert_frame_equal
 
