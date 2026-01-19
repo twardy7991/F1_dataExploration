@@ -1,4 +1,4 @@
-from pipelines.race_pipeline.transform.utils import FuelProcessing
+from airflow_project.dags.utils import FuelProcessing
 
 def test_calculate_needed_fuel(fuel_processing : FuelProcessing):
     

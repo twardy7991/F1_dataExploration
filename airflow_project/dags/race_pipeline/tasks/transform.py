@@ -5,9 +5,7 @@ import pandas as pd
 from fastf1.core import Session, Telemetry, Laps
 from airflow.sdk import task
 
-from utils.telemetry_processing import TelemetryProcessing
-from utils.acceleration_computations import AccelerationComputations
-from utils.fuel_processing import FuelProcessing
+from airflow_project.dags.utils import TelemetryProcessing, AccelerationComputations, FuelProcessing
 
 TRACK_INFO = {
     'Bahrain Grand Prix': (5.412, 308.238),

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 @task
-def load(year : str, gp_name : str, conn_id : str = "POSTGRES_CONN", load_type : bool = False, **context) -> None:
+def load(year : str, gp_name : str, conn_id : str = "POSTGRES_CONN", load_type : bool = "append", **context) -> None:
     
     def get_data(context):
 
@@ -26,7 +26,19 @@ def load(year : str, gp_name : str, conn_id : str = "POSTGRES_CONN", load_type :
     race_data["Race"] = gp_name
     race_data = race_data.reindex(sorted(race_data.columns), axis=1)
 
+
     race_data.columns = [col.lower() for col in race_data.columns]
+    
+    # Convert pyarrow duration to pandas timedelta, then to string for PostgreSQL INTERVAL
+    race_data["laptime"] = race_data["laptime"].astype("timedelta64[ns]")
+
+    # Convert timedelta to string format that PostgreSQL INTERVAL can parse
+    # This preserves the duration value while ensuring proper type mapping
+    race_data["laptime"] = race_data["laptime"].astype(str).where(
+        race_data["laptime"].notna(), 
+        None
+    )
+    
     logger.info(race_data.dtypes)
     
     with MyPostgresHook(conn_id=conn_id).get_conn() as conn:

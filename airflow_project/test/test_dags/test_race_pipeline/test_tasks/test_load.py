@@ -57,7 +57,7 @@ def test_load(mocker : MockerFixture, monkeypatch):
     
     def xcom_pull_side_effect(*, task_ids=None, key=None, **_):
         xcom_map = {
-            ("transform", "processed_file") : "airflow_project/test/data/processed/Bahrain Grand Prix/session_dataset.parquet",
+            ("transform", "processed_file") : "test/data/processed/Bahrain Grand Prix/session_dataset.parquet",
         }
         return xcom_map[(task_ids, key)]
     
@@ -68,7 +68,7 @@ def test_load(mocker : MockerFixture, monkeypatch):
         "year" : 2023,
         "gp_name" :"Bahrain Grand Prix",
         "conn_id" : "POSTGRES_TEST_CONN",
-        "load_type" : "replace"
+        #"load_type" : "delete_rows"
     }
 
     result = load.function(
@@ -82,7 +82,7 @@ def test_load(mocker : MockerFixture, monkeypatch):
             con=conn
         )
     
-    data_expected = pd.read_parquet("airflow_project/test/data/processed/Bahrain Grand Prix/session_dataset.parquet",
+    data_expected = pd.read_parquet("test/data/processed/Bahrain Grand Prix/session_dataset.parquet",
                                 engine="pyarrow", 
                                 dtype_backend="pyarrow"
                             )
@@ -91,27 +91,11 @@ def test_load(mocker : MockerFixture, monkeypatch):
     data_expected["Race"] = "Bahrain Grand Prix"
     data_expected.columns = [col.lower() for col in data_expected.columns]
     
-    data_expected = data_expected.reindex(sorted(data_expected.columns), axis=1)
-    
     data_expected.reset_index(drop=True, inplace=True)
     data_created.reset_index(drop=True, inplace=True)
-    
-    print("data_expected",
-        data_expected[
-            (data_expected["driver"] == "LEC") &
-            (data_expected["lapnumber"] == 40)
-        ]["laptime"]
-    )
-    
-    print("data_created",
-        data_created[
-            (data_created["driver"] == "LEC") &
-            (data_created["lapnumber"] == 40)
-        ]["laptime"]
-    )
-    
-    print("\nexpected" , data_expected[data_expected["laptime"].isna()])
-    print("\ncreated", data_created[data_created["laptime"].isna()])
+
+    data_expected = data_expected.reindex(sorted(data_expected.columns), axis=1)
+    data_created = data_created.reindex(sorted(data_created.columns), axis=1)
     
     assert_frame_equal(data_created, data_expected, check_dtype=False)
     

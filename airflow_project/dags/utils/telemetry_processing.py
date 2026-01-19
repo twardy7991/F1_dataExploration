@@ -2,12 +2,12 @@ import logging
 
 import pandas as pd
 
-from utils.acceleration_computations import AccelerationComputations
+#from airflow_project.dags.utils import AccelerationComputations
 
 ### UTIL CLASS FOR TELEMETRY ###
 class TelemetryProcessing: 
 
-    def __init__(self, data : pd.DataFrame, acceleration_computations : AccelerationComputations):
+    def __init__(self, data : pd.DataFrame, acceleration_computations):
         self.data = data
         self.acceleration_computations = acceleration_computations 
 
