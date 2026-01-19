@@ -1,7 +1,11 @@
 services:
   db: 
     image: postgres:16.1
+    ports: 
+      - "5452:5432"
     container_name: test_f1_db
+    tmpfs: 
+     - /var/lib/postgres/data 
     volumes:
      - ./initdb:/docker-entrypoint-initdb.d:ro
     # - ./postgresql:/var/lib/postgresql/data
