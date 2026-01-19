@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 @task
-def load(year : str, gp_name : str, **context) -> None:
+def load(year : str, gp_name : str, conn_id : str = "POSTGRES_CONN", load_type : bool = False, **context) -> None:
     
     def get_data(context):
 
@@ -24,15 +24,16 @@ def load(year : str, gp_name : str, **context) -> None:
     race_data : pd.DataFrame = get_data(context=context)
     race_data["Year"] = year
     race_data["Race"] = gp_name
-    
+    race_data = race_data.reindex(sorted(race_data.columns), axis=1)
+
     race_data.columns = [col.lower() for col in race_data.columns]
     logger.info(race_data.dtypes)
     
-    with MyPostgresHook("POSTGRES_CONN").get_conn() as conn:
+    with MyPostgresHook(conn_id=conn_id).get_conn() as conn:
             
         res = race_data.to_sql(name = "session_data", 
                         con = conn, 
-                        if_exists = "append",
+                        if_exists = load_type,
                         method = "multi",
                         index = False,
                         chunksize = 5000)

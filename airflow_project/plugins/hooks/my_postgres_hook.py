@@ -12,7 +12,7 @@ logger.setLevel(logging.DEBUG)
 
 class MyPostgresHook(BaseHook):
     
-    def __init__(self, conn_id) -> None:
+    def __init__(self, conn_id=None) -> None:
         super().__init__()
         self.conn_id = conn_id
         self._engine = self._get_engine()

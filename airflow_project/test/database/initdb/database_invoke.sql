@@ -20,38 +20,38 @@ CREATE TABLE session_data (
     MeanLapSpeed DOUBLE PRECISION
 );
 
-INSERT INTO session_data (
-    Year,
-    Race,
-    LapNumber,
-    Driver,
-    Compound,
-    TyreLife,
-    StartFuel,
-    FCL,
-    LapTime,
-    SpeedI1,
-    SpeedI2,
-    SpeedFL,
-    SumLonAcc,
-    SumLatAcc,
-    MeanLapSpeed
-)
-VALUES (
-    2024,
-    'Bahrain',
-    12,
-    'VER',
-    'SOFT',
-    7,
-    32.5,
-    0.0,
-    1234567890,
-    295.4,
-    301.2,
-    312.8,
-    145.73,
-    138.91,
-    201.6
-);
+-- INSERT INTO session_data (
+--     Year,
+--     Race,
+--     LapNumber,
+--     Driver,
+--     Compound,
+--     TyreLife,
+--     StartFuel,
+--     FCL,
+--     LapTime,
+--     SpeedI1,
+--     SpeedI2,
+--     SpeedFL,
+--     SumLonAcc,
+--     SumLatAcc,
+--     MeanLapSpeed
+-- )
+-- VALUES (
+--     2024,
+--     'Bahrain',
+--     12,
+--     'VER',
+--     'SOFT',
+--     7,
+--     32.5,
+--     0.0,
+--     1234567890,
+--     295.4,
+--     301.2,
+--     312.8,
+--     145.73,
+--     138.91,
+--     201.6
+-- );
 
