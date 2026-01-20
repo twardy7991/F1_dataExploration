@@ -1,0 +1,19 @@
+services:
+  db: 
+    image: postgres:16.1
+    container_name: f1_db
+    volumes:
+     - ./initdb:/docker-entrypoint-initdb.d:ro
+    # - ./postgresql:/var/lib/postgresql/data
+    environment:
+     POSTGRES_PASSWORD: postgres
+     POSTGRES_USER: postgres
+     POSTGRES_DB: f1_db
+    networks:
+     - database_network
+
+networks:
+  database_network:
+    external: true
+    
+     

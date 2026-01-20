@@ -1,0 +1,8 @@
+pandas
+pyarrow
+fastf1
+dtaidistance
+sqlalchemy
+psycopg[binary]
+psycopg2-binary
+#pache-airflow[google]
