@@ -1,5 +1,6 @@
 import logging
-
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.DEBUG)
 import pandas as pd
 
 #from airflow_project.dags.utils import AccelerationComputations
