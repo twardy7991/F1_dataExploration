@@ -11,7 +11,7 @@ CREATE TABLE session_data (
     TyreLife SMALLINT,           -- int8
     StartFuel DOUBLE PRECISION,  -- double
     FCL DOUBLE PRECISION,        -- double (keeping numeric, not boolean)
-    LapTime DOUBLE PRECISION, /*LapTime INTERVAL*/          -- duration[ns]
+    LapTime INTERVAL(6), /*LapTime INTERVAL*/          -- duration[ns]
     SpeedI1 DOUBLE PRECISION,    -- double
     SpeedI2 DOUBLE PRECISION,    -- double
     SpeedFL DOUBLE PRECISION,    -- double
