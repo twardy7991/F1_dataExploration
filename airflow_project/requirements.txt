@@ -5,4 +5,5 @@ dtaidistance
 sqlalchemy
 psycopg[binary]
 psycopg2-binary
+apache-airflow-providers-apache-spark
 #pache-airflow[google]

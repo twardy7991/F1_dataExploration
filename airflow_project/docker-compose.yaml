@@ -155,6 +155,7 @@ services:
     networks:
      - database_network
      - default
+     - spark-net
 
   airflow-dag-processor:
     <<: *airflow-common
@@ -348,4 +349,6 @@ volumes:
 
 networks:
   database_network:
+    external: true
+  spark-net:
     external: true
