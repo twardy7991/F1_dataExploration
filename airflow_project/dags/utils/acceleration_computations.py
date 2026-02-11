@@ -222,4 +222,7 @@ class AccelerationComputations:
         lat_acc_g_clean = self._remove_acceleration_outliers(lat_acc_g)
 
         # --- Return rounded results ---
-        return np.round(lon_acc_g_clean, 5), np.round(lat_acc_g_clean, 5)
+        telemetry["LonAcc"] = np.round(lon_acc_g_clean, 5)
+        telemetry["LatAcc"] = np.round(lat_acc_g_clean, 5)
+        
+        return telemetry

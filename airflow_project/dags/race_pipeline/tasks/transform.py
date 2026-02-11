@@ -1,47 +1,46 @@
 from pathlib import Path
 import logging
+import sys
 
 import pandas as pd
 from fastf1.core import Session, Telemetry, Laps
 from airflow.sdk import task
 
-from airflow_project.dags.utils import TelemetryProcessing, AccelerationComputations, FuelProcessing
+# Add dags directory to path for imports to work in all contexts (tests, Airflow, PySpark)
+# current_file = Path(__file__)
+# dags_dir = current_file.parent.parent.parent  # Up: tasks -> race_pipeline -> dags
+# if str(dags_dir) not in sys.path:
+#     sys.path.insert(0, str(dags_dir))
 
-TRACK_INFO = {
-    'Bahrain Grand Prix': (5.412, 308.238),
-    'Saudi Arabian Grand Prix': (6.174, 308.450),
-    'Australian Grand Prix': (5.278, 306.124),
-    'Azerbaijan Grand Prix': (6.003, 306.049),
-    'Miami Grand Prix': (5.412, 308.326),
-    'Monaco Grand Prix': (3.337, 260.286),
-    'Spanish Grand Prix': (4.675, 308.424),
-    'Canadian Grand Prix': (4.361, 305.270),
-    'Austrian Grand Prix': (4.318, 306.452),
-    'British Grand Prix': (5.891, 306.198),
-    'Hungarian Grand Prix': (4.381, 306.670),
-    'Belgian Grand Prix': (7.004, 308.052),
-    'Dutch Grand Prix': (4.259, 306.587),
-    'Italian Grand Prix': (5.793, 306.720),
-    'Singapore Grand Prix': (4.940, 308.706),
-    'Japanese Grand Prix': (5.807, 307.471),
-    'Qatar Grand Prix': (5.419, 308.611),
-    'United States Grand Prix': (5.513, 308.405),
-    'Mexico City Grand Prix': (4.304, 305.354),
-    'São Paulo Grand Prix': (4.309, 305.879),
-    'Las Vegas Grand Prix': (6.201, 305.880),
-    'Abu Dhabi Grand Prix': (5.281, 305.355),
-}
+from utils import TelemetryProcessing, AccelerationComputations, FuelProcessing
+from race_pipeline.tasks.constants import SCHEMA, TRACK_INFO
+
+from pyspark.sql import SparkSession    
+import pyspark.sql.functions as F
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-@task(do_xcom_push=True, multiple_outputs=True)   
+#pyspark(conn_id = "spark_conn", do_xcom_push=True, multiple_outputs=True)   
 ## feels too monolith, probably needs decoupling
-def transform(year : int, gp_name : str, save_path : str, **context) -> pd.DataFrame:
+def transform(spark : SparkSession, **context) -> dict:
     
-    save_path : Path = Path(save_path)
     fuel_start : int = 100 
 
+    # Extract parameters from XCom (from get_params task)
+    ti = context["ti"]
+    params_dict = ti.xcom_pull(task_ids="get_params")
+    year = params_dict["year"]
+    gp_name = params_dict["gp_name"]
+    save_path = Path(params_dict["processed_base"])
+
+    def read_df(path, key):
+        return (spark
+                .read
+                .schema(schema=SCHEMA[key])
+                .parquet(path)
+                )
+    
     def get_data(context):
 
         ti = context["ti"]
@@ -50,29 +49,32 @@ def transform(year : int, gp_name : str, save_path : str, **context) -> pd.DataF
         race_data = ti.xcom_pull(task_ids="extract", key = "race_data_file")
         quali_data = ti.xcom_pull(task_ids="extract", key="quali_data_file")
 
-        return (pd.read_parquet(race_telemetry),
-                pd.read_parquet(quali_telemetry),
-                pd.read_parquet(race_data),
-                pd.read_parquet(quali_data))
+        return (read_df(race_telemetry, "race_telemetry_file"),
+                read_df(quali_telemetry, "quali_telemetry_file"),
+                read_df(race_data, "race_data_file"),
+                read_df(quali_data, "quali_data_file"))
 
     ### creating telemetry dataframe  #########
 
     race_telemetry, quali_telemetry, race_laps_df, quali_data = get_data(context) 
     
-    if 'Time' in race_telemetry.columns:
-        race_telemetry['Time'] = pd.to_timedelta(race_telemetry['Time'])
+    race_laps_df = race_laps_df.withColumn(
+    "LapTime", F.col("LapTime") / F.lit(1000000000)
+    )
+    # if 'Time' in race_telemetry.columns:
+    #     race_telemetry['Time'] = pd.to_timedelta(race_telemetry['Time'])
 
     lap_length, track_length = TRACK_INFO[gp_name]
     #race_laps_df : Laps = race_session.laps
     main_cols = ['Driver', 'Team', 'Compound', 'TyreLife', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'LapNumber', 'DriverNumber']
     
     # drop NA # causing bugs rn
-    # race_laps_df : pd.DataFrame = race_laps_df[main_cols]
+    race_laps_df = race_laps_df.select(main_cols)
     #lap_df = lap_df[main_cols].dropna()
     
     # start = time.time()
     # -----------FUEL------------ #
-    logger.debug(f"race_laps_df driver list : \n{race_laps_df['DriverNumber'].unique()} \n")
+    #logger.debug(f"race_laps_df driver list : \n{race_laps_df['DriverNumber'].unique()} \n")
     
     fuel_processing : FuelProcessing = FuelProcessing(race_laps_df)
     race_laps_with_fuel = fuel_processing.calculateFCL(lap_length=lap_length, track_length=track_length, fuel_start=fuel_start)
@@ -81,9 +83,9 @@ def transform(year : int, gp_name : str, save_path : str, **context) -> pd.DataF
     
     # start = time.time()
     # -----------TELEMETRY------------ #
-    telemetry_df = pd.DataFrame(race_telemetry)
+    telemetry_df = race_telemetry
     
-    logger.debug(f"telemetry_df driver list : \n{telemetry_df['DriverNumber'].unique()} \n")
+    #logger.debug(f"telemetry_df driver list : \n{telemetry_df['DriverNumber'].unique()} \n")
 
     tel_processing = TelemetryProcessing(telemetry_df, acceleration_computations=AccelerationComputations())
     tel_processing.calculate_mean_lap_speed()
@@ -92,12 +94,9 @@ def transform(year : int, gp_name : str, save_path : str, **context) -> pd.DataF
     
     lap_telemetry = tel_processing.get_single_lap_data()
     
-    lap_df = pd.merge(
-        race_laps_with_fuel,
-        lap_telemetry,
-        on=['DriverNumber', 'LapNumber'],
-        how='left'
-    )
+    print("\nlap_telemetry ", lap_telemetry.columns)
+    print("\nrace_laps_with_fuel ", race_laps_with_fuel.columns)
+    lap_df = race_laps_with_fuel.join(lap_telemetry, on=['DriverNumber', 'LapNumber'], how="left")
 
     # start = time.time()
     # -----------DTW------------ #
@@ -107,27 +106,29 @@ def transform(year : int, gp_name : str, save_path : str, **context) -> pd.DataF
     # lap_df = pd.merge(lap_df,dist_df, on=['DriverNumber', 'LapNumber'], how='left')
 
     #final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed', 'LonDistanceDTW', 'LatDistanceDTW']
-    
+    print("\nlap_df ", lap_df.columns)
     # -----------FINAL------------ #
     final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed']
-    processed_df = lap_df[final_cols].reset_index(drop=True)
+    processed_df = lap_df.select(final_cols)
     
-    logger.debug(processed_df.head())
+    #logger.debug(processed_df.head())
     
     #logging.info(f"DTW calculations done in {time.time() - start:.2f} seconds.")
 
     out_dir = save_path / str(year) / gp_name
     out_dir.mkdir(parents=True, exist_ok=True)
     
-    logger.info(f"Output directory: {out_dir}")
+    #logger.info(f"Output directory: {out_dir}")
     
     out_file = out_dir / "session_dataset.parquet"
     
     logger.info(f"Saving processed data to {out_file}")
     
-    processed_df.to_parquet(out_file)
+    print("df datatypes", processed_df.dtypes)
+    
+    processed_df.write.parquet(str(out_file))
 
     return {
-        "processed_file" : str(out_file)
+        "processed_file": str(out_file)
     }
 

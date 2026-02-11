@@ -3,17 +3,18 @@ from datetime import datetime
 import logging
 
 from airflow.sdk import dag, Param, task
+from airflow.providers.apache.spark.operators.spark_pyspark import PySparkOperator
 
-from airflow_project.dags.race_pipeline.tasks.extract import extract
-from airflow_project.dags.race_pipeline.tasks.transform import transform
-from airflow_project.dags.race_pipeline.tasks.load import load
+from race_pipeline.tasks.extract import extract
+from race_pipeline.tasks.transform import transform
+from race_pipeline.tasks.load import load
 
 logging.basicConfig(level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-default_args = default_args = {"owner": "airflow", "start_date": datetime(2021, 1, 1)}
+default_args = {"owner": "airflow", "start_date": datetime(2021, 1, 1)}
 
 @dag(
     dag_id = "single_race_dag",
@@ -48,10 +49,19 @@ def etl_pipeline():
 
     extract_session = extract(year = params["year"], gp_name = params["gp_name"], save_path = params["raw_base"])
 
-    transform_session = transform(year = params["year"], gp_name = params["gp_name"], save_path = params["processed_base"])
+    transform_session = PySparkOperator(python_callable=transform, 
+                                        task_id="spark_transform",
+                                        conn_id="spark_conn",
+                                        do_xcom_push=True, 
+                                        multiple_outputs=True
+                                    )
+    #transform_session = transform(year = params["year"], gp_name = params["gp_name"], save_path = params["processed_base"])
 
     load_session = load(year = params["year"], gp_name = params["gp_name"])
 
     extract_session >> transform_session >> load_session
+    
+    # Ensure get_params runs before transform (for XCom availability)
+    params >> transform_session
     
 session_pipeline = etl_pipeline() 
