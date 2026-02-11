@@ -214,6 +214,7 @@ services:
         condition: service_completed_successfully
     networks:
       - default
+      - spark-net
 
   airflow-init:
     <<: *airflow-common

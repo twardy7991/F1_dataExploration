@@ -24,6 +24,7 @@ services:
     container_name: spark-worker1
     networks:
       - sparkpg_network
+      - spark-net
     entrypoint: /bin/bash
     command: -c "/opt/spark/sbin/start-worker.sh  spark://spark-master:7077; tail -f /dev/null"
 

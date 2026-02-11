@@ -26,7 +26,6 @@ logger.setLevel(logging.INFO)
 def transform(spark : SparkSession, **context) -> dict:
     
     fuel_start : int = 100 
-
     # Extract parameters from XCom (from get_params task)
     ti = context["ti"]
     params_dict = ti.xcom_pull(task_ids="get_params")
