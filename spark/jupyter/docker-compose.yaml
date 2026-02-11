@@ -1,0 +1,16 @@
+services:
+  spark:
+    build: .
+    stdin_open: true
+    tty: true
+
+    ports: 
+      - 8889:8889
+    
+    volumes:
+      - "./../data/raw/2023/Bahrain Grand Prix:/data"
+    environment:
+     - PYSPARK_DRIVER_PYTHON=jupyter
+     - PYSPARK_DRIVER_PYTHON_OPTS=notebook --no-browser --port=8889 --ip=0.0.0.0 --allow-root --ServerApp.token='' --ServerApp.password=''
+
+    command: /opt/spark/bin/pyspark
