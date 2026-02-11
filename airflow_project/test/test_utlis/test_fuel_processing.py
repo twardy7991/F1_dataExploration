@@ -1,4 +1,5 @@
-from airflow_project.dags.utils import FuelProcessing
+from dags.utils import FuelProcessing
+
 
 def test_calculate_needed_fuel(fuel_processing : FuelProcessing):
     
@@ -18,5 +19,3 @@ def test_calculate_start_fuel(fuel_processing : FuelProcessing):
 
     assert start_fuel == 80
 
-def test_calculate_avg_fuel(fuel_processing : FuelProcessing):
-    pass
