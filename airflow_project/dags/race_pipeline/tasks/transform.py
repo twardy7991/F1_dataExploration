@@ -1,10 +1,6 @@
 from pathlib import Path
 import logging
-import sys
-
-import pandas as pd
-from fastf1.core import Session, Telemetry, Laps
-from airflow.sdk import task
+import argparse
 
 # Add dags directory to path for imports to work in all contexts (tests, Airflow, PySpark)
 # current_file = Path(__file__)
@@ -12,7 +8,10 @@ from airflow.sdk import task
 # if str(dags_dir) not in sys.path:
 #     sys.path.insert(0, str(dags_dir))
 
-from utils import TelemetryProcessing, AccelerationComputations, FuelProcessing
+from utils.acceleration_computations import  AccelerationComputations
+from utils.fuel_processing import FuelProcessing
+from utils.telemetry_processing import TelemetryProcessing
+
 from race_pipeline.tasks.constants import SCHEMA, TRACK_INFO
 
 from pyspark.sql import SparkSession    
@@ -23,17 +22,19 @@ logger.setLevel(logging.INFO)
 
 #pyspark(conn_id = "spark_conn", do_xcom_push=True, multiple_outputs=True)   
 ## feels too monolith, probably needs decoupling
-def transform(spark : SparkSession, **context) -> dict:
+def transform() -> dict:    
     
-    fuel_start : int = 100 
-
-    # Extract parameters from XCom (from get_params task)
-    ti = context["ti"]
-    params_dict = ti.xcom_pull(task_ids="get_params")
-    year = params_dict["year"]
-    gp_name = params_dict["gp_name"]
-    save_path = Path(params_dict["processed_base"])
-
+    parser = argparse.ArgumentParser(description="spark job arguments")
+    parser.add_argument('--race_telemetry_file', required=True)
+    parser.add_argument('--quali_telemetry_file', required=True)
+    parser.add_argument('--race_data_file', required=True)
+    parser.add_argument('--quali_data_file', required=True)
+    parser.add_argument('--year', type=int, required=True)
+    parser.add_argument('--gp_name', required=True)
+    parser.add_argument('--processed_base', required=True)
+    
+    args = parser.parse_args()
+    
     def read_df(path, key):
         return (spark
                 .read
@@ -41,22 +42,25 @@ def transform(spark : SparkSession, **context) -> dict:
                 .parquet(path)
                 )
     
-    def get_data(context):
+    spark = (SparkSession
+            .builder
+            .appName("spark_transform")
+            .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2") \
+            .config("spark.hadoop.mapreduce.fileoutputcommitter.cleanup-failures.enabled", "true")
+            .getOrCreate())
+    
+    fuel_start : int = 100 
 
-        ti = context["ti"]
-        race_telemetry = ti.xcom_pull(task_ids="extract", key = "race_telemetry_file")
-        quali_telemetry = ti.xcom_pull(task_ids="extract", key = "quali_telemetry_file")
-        race_data = ti.xcom_pull(task_ids="extract", key = "race_data_file")
-        quali_data = ti.xcom_pull(task_ids="extract", key="quali_data_file")
+    race_telemetry = read_df(args.race_telemetry_file, "race_telemetry_file")
+    quali_telemetry = read_df(args.quali_telemetry_file, "quali_telemetry_file")
+    race_laps_df = read_df(args.race_data_file, "race_data_file")
+    quali_data = read_df(args.quali_data_file, "quali_data_file")
 
-        return (read_df(race_telemetry, "race_telemetry_file"),
-                read_df(quali_telemetry, "quali_telemetry_file"),
-                read_df(race_data, "race_data_file"),
-                read_df(quali_data, "quali_data_file"))
-
+    year = args.year
+    gp_name = args.gp_name
+    save_path = Path(args.processed_base)
+    
     ### creating telemetry dataframe  #########
-
-    race_telemetry, quali_telemetry, race_laps_df, quali_data = get_data(context) 
     
     race_laps_df = race_laps_df.withColumn(
     "LapTime", F.col("LapTime") / F.lit(1000000000)
@@ -126,9 +130,12 @@ def transform(spark : SparkSession, **context) -> dict:
     
     print("df datatypes", processed_df.dtypes)
     
-    processed_df.write.parquet(str(out_file))
+    processed_df.write.mode("overwrite").parquet(str(out_file))
 
     return {
         "processed_file": str(out_file)
     }
 
+
+if __name__ == "__main__":
+    transform()
