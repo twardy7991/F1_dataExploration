@@ -7,6 +7,7 @@ networks:
 
 services:
   spark-master:
+    build: .
     image: spark-f1
     container_name: spark-master
     networks:
@@ -18,19 +19,30 @@ services:
       - '8081:8080'
       - '4040:4040'
       - '7077:7077'
+    volumes:
+      - "./../airflow_project/dags/race_pipeline/tasks:/opt/airflow/tasks"
+      - "./../airflow_project/dags/utils:/opt/airflow/utils"
+      - "./../data:/opt/airflow/data"
 
   spark-worker:
+    build: .
     image: spark-f1
     container_name: spark-worker1
     networks:
       - sparkpg_network
+      - spark-net
+    volumes:
+      - "./../airflow_project/dags/race_pipeline/tasks:/opt/airflow/tasks"
+      - "./../airflow_project/dags/utils:/opt/airflow/utils"
+      - "./../data:/opt/airflow/data"
+      
     entrypoint: /bin/bash
     command: -c "/opt/spark/sbin/start-worker.sh  spark://spark-master:7077; tail -f /dev/null"
 
     # spark-history-server:
     #   image: my_first_spark
     #   build: .
-    #   container_name: spark-history-server
+    #   container_name: spark-history-serverg
     #   networks:
     #     - sparkpg_network
     #   entrypoint: /bin/bash

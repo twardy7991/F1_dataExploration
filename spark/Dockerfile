@@ -1,6 +1,6 @@
 
 ## got from https://medium.com/@dkalouris/setting-up-spark-using-docker-59db2d073487
-FROM python:3.10-bullseye
+FROM python:3.11-bullseye
 
 RUN apt-get update
 RUN apt-get install -y openjdk-17-jdk
@@ -24,6 +24,8 @@ ENV SPARK_MASTER_PORT="7077"
 # Name of master container and also counts as hostname
 ENV SPARK_MASTER_HOST="spark-master"
 COPY ./spark-defaults.conf "${SPARK_HOME}/conf"
+
+RUN pip install pandas dtaidistance fastf1 pyarrow
 
 RUN mkdir /opt/spark/events
 

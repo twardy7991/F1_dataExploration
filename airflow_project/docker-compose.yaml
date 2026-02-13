@@ -213,6 +213,7 @@ services:
       airflow-init:
         condition: service_completed_successfully
     networks:
+      - spark-net
       - default
 
   airflow-init:
@@ -351,4 +352,4 @@ networks:
   database_network:
     external: true
   spark-net:
-    external: true
+    external: true 

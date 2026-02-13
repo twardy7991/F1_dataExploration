@@ -1,5 +1,6 @@
 pandas
 pyarrow
+pyspark == 3.5.8
 fastf1
 dtaidistance
 sqlalchemy
