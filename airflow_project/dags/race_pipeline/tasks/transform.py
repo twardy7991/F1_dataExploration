@@ -22,8 +22,7 @@ logger.setLevel(logging.INFO)
 
 #pyspark(conn_id = "spark_conn", do_xcom_push=True, multiple_outputs=True)   
 ## feels too monolith, probably needs decoupling
-def transform() -> dict:    
-    
+def parse_args(args=None):
     parser = argparse.ArgumentParser(description="spark job arguments")
     parser.add_argument('--race_telemetry_file', required=True)
     parser.add_argument('--quali_telemetry_file', required=True)
@@ -33,8 +32,11 @@ def transform() -> dict:
     parser.add_argument('--gp_name', required=True)
     parser.add_argument('--processed_base', required=True)
     
-    args = parser.parse_args()
+    return parser.parse_args(args)
     
+def transform(args=None) -> dict:    
+    args = parse_args(args)    
+
     def read_df(path, key):
         return (spark
                 .read
@@ -130,7 +132,7 @@ def transform() -> dict:
     
     print("df datatypes", processed_df.dtypes)
     
-    processed_df.write.mode("overwrite").parquet(str(out_file))
+    processed_df.write.format("parquet").mode("overwrite").save(str(out_file))
 
     return {
         "processed_file": str(out_file)

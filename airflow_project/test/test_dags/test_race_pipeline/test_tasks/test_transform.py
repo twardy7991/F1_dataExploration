@@ -23,35 +23,19 @@ def test_transform(mocker : MockerFixture, temp_dir, benchmark, spark_test : Spa
     # this simulates real xcom_pull that does not accept positional arguments and,
     # might accept many keyword arguments but we only want to use task_ids and key.
     import os
-    print(os.getcwd())
-    
-    def xcom_pull_side_effect(*, task_ids=None, key=None, **_):
-        xcom_map = {
-            ("extract", "quali_data_file") : "test/data/Bahrain Grand Prix/2023_Bahrain Grand Prix_quali_data.parquet",
-            ("extract", "quali_telemetry_file") : "test/data/Bahrain Grand Prix/2023_Bahrain Grand Prix_quali_telemetry.parquet",
-            ("extract", "race_data_file") : "test/data/Bahrain Grand Prix/2023_Bahrain Grand Prix_race_data.parquet",
-            ("extract", "race_telemetry_file") : "test/data/Bahrain Grand Prix/2023_Bahrain Grand Prix_race_telemetry.parquet",
-        }
-        return xcom_map[(task_ids, key)]
-    
-    # patching the xcom_pull method with money function
-    ti.xcom_pull.side_effect = xcom_pull_side_effect
 
-    context = {"ti" : ti,
-        "year" : 2023,
-        "gp_name" :"Bahrain Grand Prix",
-        "spark" : spark_test,
-    }
+    args = ["--race_telemetry_file", "test/data/Bahrain Grand Prix/2023_Bahrain Grand Prix_race_telemetry.parquet",
+            "--quali_telemetry_file", "test/data/Bahrain Grand Prix/2023_Bahrain Grand Prix_quali_telemetry.parquet",
+            "--race_data_file", "test/data/Bahrain Grand Prix/2023_Bahrain Grand Prix_race_data.parquet",
+            "--quali_data_file", "test/data/Bahrain Grand Prix/2023_Bahrain Grand Prix_quali_data.parquet",
+            "--year", "2023",
+            "--gp_name", "Bahrain_Grand_Prix",
+            "--processed_base", f"{temp_dir}"
+    ]
 
     # Call the transform function directly with the context
-    result = transform(
-        year=context["year"],
-        gp_name=context["gp_name"],
-        save_path=temp_dir,
-        spark=context["spark"],
-        **{"ti": ti}
-    )
-    
+    result = transform(args=args)
+
     # Verify that the output file was created
     created_file = os.path.join(temp_dir, "2023", "Bahrain Grand Prix", "session_dataset.parquet")
     assert os.path.exists(created_file), f"Output file not found at {created_file}"
@@ -84,7 +68,13 @@ def test_transform(mocker : MockerFixture, temp_dir, benchmark, spark_test : Spa
         expected_parq = expected_parq.withColumn("LapTime", F.col("LapTime") / F.lit(1000000000))
         expected_parq = expected_parq.sort("Driver", "LapNumber")
         
-        created_parq = spark_test.read.parquet(created_file)
+        from pathlib import Path 
+        created_parq_dir = Path("expected_file")
+
+        created_parq_path = created_parq_dir.rglob("part-*")[0]
+        print(created_parq_path)
+
+        created_parq = spark_test.read.parquet(created_parq_path)
         created_parq = created_parq.sort("Driver", "LapNumber")
 
         created_parq = created_parq.withColumn("SumLonAcc", F.col("SumLonAcc") * F.lit(1000))
