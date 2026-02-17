@@ -63,11 +63,11 @@ LAPS_SCHEMA = StructType(
 
 TELEMETRY_SCHEMA = StructType(
 [
-    StructField("Date", LongType() ,False),
+    StructField("Date", TimestampType() ,False),
     StructField("SesssionTime", DayTimeIntervalType(), False),
     StructField("DriverAhead", StringType(), True),
     StructField("DistanceToDriverAhead", DoubleType(), True),
-    StructField("Time", DayTimeIntervalType(), False),
+    StructField("Time", LongType(), False),
     StructField("RPM", DoubleType(), False),
     StructField("Speed", DoubleType(), False),
     StructField("nGear", LongType(), False),

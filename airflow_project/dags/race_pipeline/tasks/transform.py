@@ -2,12 +2,6 @@ from pathlib import Path
 import logging
 import argparse
 
-# Add dags directory to path for imports to work in all contexts (tests, Airflow, PySpark)
-# current_file = Path(__file__)
-# dags_dir = current_file.parent.parent.parent  # Up: tasks -> race_pipeline -> dags
-# if str(dags_dir) not in sys.path:
-#     sys.path.insert(0, str(dags_dir))
-
 from utils.acceleration_computations import  AccelerationComputations
 from utils.fuel_processing import FuelProcessing
 from utils.telemetry_processing import TelemetryProcessing
@@ -34,8 +28,19 @@ def parse_args(args=None):
     
     return parser.parse_args(args)
     
-def transform(args=None) -> dict:    
+def transform(args=None, spark=None) -> dict:    
     args = parse_args(args)    
+
+    import sys
+    import os
+
+    # import importlib.util
+    # print(importlib.util.find_spec("utils"))
+    # print(importlib.util.find_spec("dags.utils"))
+
+    # print("EXECUTOR cwd:", os.getcwd())
+    # print("EXECUTOR sys.path:", sys.path)
+    # print("UTILS EXISTS:", os.path.exists("utils"))
 
     def read_df(path, key):
         return (spark
@@ -44,18 +49,23 @@ def transform(args=None) -> dict:
                 .parquet(path)
                 )
     
-    spark = (SparkSession
-            .builder
-            .appName("spark_transform")
-            .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2") \
-            .config("spark.hadoop.mapreduce.fileoutputcommitter.cleanup-failures.enabled", "true")
-            .getOrCreate())
+    if not spark:
+        spark = (SparkSession
+                .builder
+                .appName("spark_transform")
+                .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2") \
+                .config("spark.hadoop.mapreduce.fileoutputcommitter.cleanup-failures.enabled", "true")
+                .getOrCreate())
     
     fuel_start : int = 100 
 
     race_telemetry = read_df(args.race_telemetry_file, "race_telemetry_file")
+    race_telemetry = race_telemetry.withColumn("Time", F.col("Time") / F.lit(1e9))
+
     quali_telemetry = read_df(args.quali_telemetry_file, "quali_telemetry_file")
+
     race_laps_df = read_df(args.race_data_file, "race_data_file")
+
     quali_data = read_df(args.quali_data_file, "quali_data_file")
 
     year = args.year
@@ -65,7 +75,7 @@ def transform(args=None) -> dict:
     ### creating telemetry dataframe  #########
     
     race_laps_df = race_laps_df.withColumn(
-    "LapTime", F.col("LapTime") / F.lit(1000000000)
+        "LapTime", F.col("LapTime") / F.lit(1e9)
     )
     # if 'Time' in race_telemetry.columns:
     #     race_telemetry['Time'] = pd.to_timedelta(race_telemetry['Time'])
@@ -100,8 +110,8 @@ def transform(args=None) -> dict:
     
     lap_telemetry = tel_processing.get_single_lap_data()
     
-    print("\nlap_telemetry ", lap_telemetry.columns)
-    print("\nrace_laps_with_fuel ", race_laps_with_fuel.columns)
+    #print("\nlap_telemetry ", lap_telemetry.columns)
+    #print("\nrace_laps_with_fuel ", race_laps_with_fuel.columns)
     lap_df = race_laps_with_fuel.join(lap_telemetry, on=['DriverNumber', 'LapNumber'], how="left")
 
     # start = time.time()
@@ -112,7 +122,6 @@ def transform(args=None) -> dict:
     # lap_df = pd.merge(lap_df,dist_df, on=['DriverNumber', 'LapNumber'], how='left')
 
     #final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed', 'LonDistanceDTW', 'LatDistanceDTW']
-    print("\nlap_df ", lap_df.columns)
     # -----------FINAL------------ #
     final_cols = ['LapNumber','Driver', 'Compound', 'TyreLife', 'StartFuel', 'FCL', 'LapTime', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SumLonAcc', 'SumLatAcc', 'MeanLapSpeed']
     processed_df = lap_df.select(final_cols)
@@ -130,14 +139,13 @@ def transform(args=None) -> dict:
     
     logger.info(f"Saving processed data to {out_file}")
     
-    print("df datatypes", processed_df.dtypes)
-    
+    #print("df datatypes", processed_df.dtypes)
+
     processed_df.write.format("parquet").mode("overwrite").save(str(out_file))
 
     return {
         "processed_file": str(out_file)
     }
-
 
 if __name__ == "__main__":
     transform()

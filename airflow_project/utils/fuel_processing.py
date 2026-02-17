@@ -49,9 +49,7 @@ class FuelProcessing:
         
         df2 = df2.withColumn(
             "avg",
-            when(col("LapNumber") == 1, lit(fuel_start))
-            .when(col("LapNumber") == 2, col("StartFuel") + lit(fuel_start))
-            .otherwise(col("StartFuel") + lit(fuel_per_lap))
+            col("StartFuel") - fuel_per_lap / 2 # to na pewno poprawnie? nie powinno być lit(fuel_start) - fuel_per_lap / 2
         )
 
         df2 = df2.withColumn("FCL",

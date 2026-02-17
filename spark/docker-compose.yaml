@@ -34,6 +34,7 @@ services:
     volumes:
       - "./../airflow_project/dags/race_pipeline/tasks:/opt/airflow/tasks"
       - "./../airflow_project/dags/utils:/opt/airflow/utils"
+      ## SPARK NEEDS TO HAVE FULL PERMISSIONS TO DATA FOLDER !
       - "./../data:/opt/airflow/data"
       
     entrypoint: /bin/bash

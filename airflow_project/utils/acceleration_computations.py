@@ -225,4 +225,4 @@ class AccelerationComputations:
         telemetry["LonAcc"] = np.round(lon_acc_g_clean, 5)
         telemetry["LatAcc"] = np.round(lat_acc_g_clean, 5)
         
-        return telemetry
+        return telemetry[["DriverNumber","LapNumber","LonAcc","LatAcc","Time"]]

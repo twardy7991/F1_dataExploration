@@ -69,46 +69,33 @@ class TelemetryProcessing:
     ## not great, (up for improvement)
     def calculate_accelerations(self):
 
-        schema = StructType([
-            StructField("Date", LongType() ,False),
-            StructField("SesssionTime", DayTimeIntervalType(), False),
-            StructField("DriverAhead", StringType(), True),
-            StructField("DistanceToDriverAhead", DoubleType(), True),
-            StructField("Time", DayTimeIntervalType(), False),
-            StructField("RPM", DoubleType(), False),
-            StructField("Speed", DoubleType(), False),
-            StructField("nGear", LongType(), False),
-            StructField("Throttle", DoubleType(), False),
-            StructField("Brake", BooleanType(), False),
-            StructField("DRS", LongType(), False),
-            StructField("Source", StringType(), True),
-            StructField("Distance", DoubleType(), False),
-            StructField("RelativeDistance", DoubleType(), False),
-            StructField("Status", StringType(), False),
-            StructField("X", DoubleType(), False),
-            StructField("Y", DoubleType(), False),
-            StructField("Z", DoubleType(), False),
+        schema_acc = StructType([
             StructField("DriverNumber", StringType(), False),
             StructField("LapNumber", DoubleType(), False),
-            StructField("MeanLapSpeed", DoubleType(), False),
             StructField("LonAcc", DoubleType(), True),
-            StructField("LatAcc", DoubleType(), True)
+            StructField("LatAcc", DoubleType(), True),
+            StructField("Time", DoubleType(), True)
         ])
         
         computations = self.acceleration_computations 
-        
-        print("SDFWQEGFSEFASEGAWSSGARSG",   self.data.show())
-        
-        self.data = (
-            self.data.groupby('DriverNumber', 'LapNumber')
+
+        df_t = self.data
+        df_t = (
+            df_t
+            .select('Time', 'Speed', 'Distance', "X", "Y", "DriverNumber", "LapNumber")
+            .groupby('DriverNumber', 'LapNumber')
             .applyInPandas(
                 lambda pdf: computations.compute_accelerations(pdf), 
-                schema=schema
-                )
+                schema=schema_acc
+            )
         )
-        
-        print(self.data.show())
-        
+
+        self.data = self.data.join(
+            df_t,
+            on=["DriverNumber", "LapNumber", "Time"],
+            how="left"   
+        )
+
         self.data = self.data.withColumn(
             'AbsLatAcc',
             F.abs('LatAcc')
@@ -123,8 +110,7 @@ class TelemetryProcessing:
 
         self.data = self.data.withColumn('SumLonAcc', F.sum('AbsLonAcc').over(w))
         self.data = self.data.withColumn('SumLatAcc', F.sum('AbsLatAcc').over(w))
-        #logging.debug("df after calculate_accelerations %s", self.data.head())
-        
+
         return self
 
     def calculate_lap_progress(self):
@@ -137,7 +123,7 @@ class TelemetryProcessing:
         self.data = self.data.withColumn("LapProgress", col("TimeNumberLapTime") / col("TimeNumberLapCounts"))
 
         self.data = self.data.drop("TimeNumberLapTime", "TimeNumberLapCounts")
-                
+        
         return self
 
     ## not great, but i need a way to get single lap telemetry data (up for improvement)
@@ -149,10 +135,8 @@ class TelemetryProcessing:
         #logging.debug("df shape get_single_lap_data \n%s \n", self.data.s)
         return self.data
 
-
-
 ### UTIL CLASS FOR TELEMETRY ###
-class OldTelemetryProcessing: 
+class OldTelemetryProcessing:
 
     def __init__(self, data : pd.DataFrame, acceleration_computations):
         self.data = data
