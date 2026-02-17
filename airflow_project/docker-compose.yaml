@@ -68,7 +68,7 @@ x-airflow-common: &airflow-common
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
-    
+
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -77,6 +77,7 @@ x-airflow-common: &airflow-common
     ## added folder for data
     - ${AIRFLOW_PROJ_DIR:-.}/../data:/opt/airflow/data
     - ${AIRFLOW_PROJ_DIR:-.}/../cache:/opt/airflow/cache
+    - ${AIRFLOW_PROJ_DIR:-.}/utils:/opt/airflow/utils
 
   user: "${AIRFLOW_UID:-50000}:0"
 
@@ -155,6 +156,7 @@ services:
     networks:
      - database_network
      - default
+     - spark-net
 
   airflow-dag-processor:
     <<: *airflow-common
@@ -212,6 +214,7 @@ services:
       airflow-init:
         condition: service_completed_successfully
     networks:
+      - spark-net
       - default
 
   airflow-init:
@@ -349,3 +352,5 @@ volumes:
 networks:
   database_network:
     external: true
+  spark-net:
+    external: true 

@@ -1,4 +1,4 @@
-from airflow_project.dags.race_pipeline.tasks.load import load
+from dags.race_pipeline.tasks.load import load
 
 import pandas as pd
 from pandas.testing import assert_frame_equal

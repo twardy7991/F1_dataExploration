@@ -1,8 +1,16 @@
 from datetime import timedelta
 import logging
+import sys
+from pathlib import Path
 
 from airflow.sdk import task
 import pandas as pd
+
+# Add dags directory to path for imports to work in all contexts
+current_file = Path(__file__)
+dags_dir = current_file.parent.parent.parent  # Up: tasks -> race_pipeline -> dags
+if str(dags_dir) not in sys.path:
+    sys.path.insert(0, str(dags_dir))
 
 from hooks.my_postgres_hook import MyPostgresHook
 

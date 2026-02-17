@@ -1,6 +1,6 @@
 from airflow.providers.standard.operators.python import PythonOperator
 
-from airflow_project.dags.race_pipeline.tasks.extract import extract
+from dags.race_pipeline.tasks.extract import extract
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
@@ -15,7 +15,7 @@ def test_extract(temp_dir):
         )
     
     print(result)
-    print(os.getcwd())
+    print(os.listdir())
     
     correct_list = os.listdir("test/data/Bahrain Grand Prix")
     created_list = os.listdir(temp_dir + "/2023/Bahrain Grand Prix")
