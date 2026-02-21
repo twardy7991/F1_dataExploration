@@ -1,8 +1,10 @@
 pandas
 pyarrow
+pyspark == 3.5.8
 fastf1
 dtaidistance
 sqlalchemy
 psycopg[binary]
 psycopg2-binary
+apache-airflow-providers-apache-spark
 #pache-airflow[google]

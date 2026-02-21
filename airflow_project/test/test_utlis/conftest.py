@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from airflow_project.dags.utils import AccelerationComputations, TelemetryProcessing, FuelProcessing
+from dags.utils import AccelerationComputations, TelemetryProcessing, FuelProcessing
 
 @pytest.fixture
 def acceleration_computations():

@@ -69,10 +69,10 @@ def extract(year : int, gp_name : str, save_path : str, **context):
     quali_telemetry = get_session_telemetry(quali)
     
     race_data = race_data.astype({
-        "LapNumber": "Int16",
-        "Stint": "Int8",
-        "TyreLife": "Int8",
-        "Position": "Int8",
+        "LapNumber": "Int32",
+        "Stint": "Int32",
+        "TyreLife": "Int32",
+        "Position": "Int32",
 
         "IsPersonalBest": "boolean",
         "Deleted": "boolean",
@@ -85,77 +85,66 @@ def extract(year : int, gp_name : str, save_path : str, **context):
         "DeletedReason": "string",
     })
     
-    # data_schema = pa.schema([
-    #     pa.field("Time", pa.duration("ns")),
-
-    #     pa.field("Driver", pa.string()),
-    #     pa.field("DriverNumber", pa.string()),
-
-    #     pa.field("LapTime", pa.duration("ns")),
-    #     pa.field("LapNumber", pa.int16()),
-    #     pa.field("Stint", pa.int8()),
-
-    #     pa.field("PitOutTime", pa.duration("ns")),
-    #     pa.field("PitInTime", pa.duration("ns")),
-
-    #     pa.field("Sector1Time", pa.duration("ns")),
-    #     pa.field("Sector2Time", pa.duration("ns")),
-    #     pa.field("Sector3Time", pa.duration("ns")),
-
-    #     pa.field("Sector1SessionTime", pa.duration("ns")),
-    #     pa.field("Sector2SessionTime", pa.duration("ns")),
-    #     pa.field("Sector3SessionTime", pa.duration("ns")),
-
-    #     pa.field("SpeedI1", pa.float32()),
-    #     pa.field("SpeedI2", pa.float32()),
-    #     pa.field("SpeedFL", pa.float32()),
-    #     pa.field("SpeedST", pa.float32()),
-
-    #     pa.field("IsPersonalBest", pa.bool_()),
-
-    #     pa.field("Compound", pa.string()),
-    #     pa.field("TyreLife", pa.int8()),
-    #     pa.field("FreshTyre", pa.bool_()),
-    #     pa.field("Team", pa.string()),
-
-    #     pa.field("LapStartTime", pa.duration("ns")),
-    #     pa.field("LapStartDate", pa.timestamp("ns")),
-
-    #     pa.field("TrackStatus", pa.string()),
-
-    #     pa.field("Position", pa.int8()),
-
-    #     pa.field("Deleted", pa.bool_()),
-    #     pa.field("DeletedReason", pa.string()),
-
-    #     pa.field("FastF1Generated", pa.bool_()),
-    #     pa.field("IsAccurate", pa.bool_())
-    # ])
-    
-    # race_data_table = pa.Table.from_pandas(
-    #     race_data,
-    #     schema=data_schema,
-    #     preserve_index=False
-    # )
-    
-    # if not race_data_file.exists():
-    #     pa.parquet.write_table(race_data_table, race_data_file)
-    
     if not race_data_file.exists():
         race_data.to_parquet(race_data_file,         
-                            engine="pyarrow")
+                            engine="pyarrow",
+                            coerce_timestamps="us",
+                            allow_truncated_timestamps=True)
+    
+    quali_data = quali_data.astype({
+        "LapNumber": "Int32",
+        "Stint": "Int32",
+        "TyreLife": "Int32",
+        "Position": "Int32",
+
+        "IsPersonalBest": "boolean",
+        "Deleted": "boolean",
+
+        "Driver": "string",
+        "DriverNumber": "string",
+        "Compound": "string",
+        "Team": "string",
+        "TrackStatus": "string",
+        "DeletedReason": "string",
+    })
     
     if not quali_data_file.exists():
         quali_data.to_parquet(quali_data_file,
-                              engine="pyarrow")
+                            engine="pyarrow",
+                            coerce_timestamps="us",
+                            allow_truncated_timestamps=True)
+    
+        # Make an explicit copy
+    race_telemetry['SessionTime'] = race_telemetry['SessionTime'].copy()
+
+    # Optional: ensure dtype is timedelta64[ns]
+    race_telemetry['SessionTime'] = pd.to_timedelta(race_telemetry['SessionTime'])
+    
+    race_telemetry = race_telemetry.astype({
+        "DriverAhead": "string",
+        "Source" : "string",
+        "Status": "string",
+        "DriverNumber": "string",
+    })
     
     if not race_telemetry_file.exists():
         race_telemetry.to_parquet(race_telemetry_file,
-                                  engine="pyarrow")
+                                engine="pyarrow",
+                                coerce_timestamps="us",
+                                allow_truncated_timestamps=True)
+    
+    quali_telemetry = quali_telemetry.astype({
+        "DriverAhead": "string",
+        "Source" : "string",
+        "Status": "string",
+        "DriverNumber": "string",
+    })
     
     if not quali_telemetry_file.exists():
         quali_telemetry.to_parquet(quali_telemetry_file,
-                                   engine="pyarrow")
+                                    engine="pyarrow",
+                                    coerce_timestamps="us",
+                                    allow_truncated_timestamps=True)
     
     return {
         "quali_data_file": str(quali_data_file),
