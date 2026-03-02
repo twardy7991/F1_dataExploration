@@ -1,7 +1,7 @@
 # F1 Data Exploration Project
 
 ### Project Overview  
-This project provides tools for fetching and processing F1 telemetry data. It aims to simulate a real-world scenario and uses Spark and Airflow to handle large amounts of data. The architecture remains flexible due to the use of multiple Docker containers that work together to provide a controllable data processing stream, including fetching, processing, and saving data to a database.
+This project provides tools for fetching and processing the totality of publicly available F1 data. It aims to simulate a real-world scenario and uses Spark and Airflow to handle large amounts of data. The architecture remains flexible due to the use of multiple Docker containers that work together to provide a controllable data processing stream, including fetching, processing, and saving data to a database.
 
 ## Project Structure
 
