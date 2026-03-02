@@ -6,8 +6,8 @@ This project provides tools for fetching and processing F1 telemetry data. It ai
 ## Project Structure
 
 ### Airflow
-- Located in `\airflow_projct`
-- Orchestrates fetching, computations and save of the data
+- Located in `\airflow_project`
+- Orchestrates fetching, computations and storage of the data
 
 ### Spark Computations
 - Handled in `\spark`
@@ -19,11 +19,11 @@ This project provides tools for fetching and processing F1 telemetry data. It ai
 
 ### Dashboard
 - Loacated in `\dashboard`
-- Prototype of dashboard for fetching and presenting insights from computed data (still in progress)
+- Prototype dashboard for fetching and presenting insights from processed data (still in progress)
 
 ### Telemetry and Fuel analysis
 - In `\analysis`
-- Currently prototypes, not included into data stream managed by airflow
+- Currently prototypes, not integrated into data stream managed by airflow
 - The models section includes:
   - Basic regression models
   - Advanced forest models
